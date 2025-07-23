@@ -1,0 +1,67 @@
+services:
+  - type: psql
+    name: converter-db
+    plan: free
+
+  - type: redis
+    name: converter-queue
+    plan: free
+
+  - type: web
+    name: docx-converter-api
+    env: docker
+    dockerfilePath: ./Dockerfile.api
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9
+      - key: PYTHONPATH
+        value: /code
+      - key: DATABASE_URL
+        fromService:
+          type: psql
+          name: converter-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: converter-queue
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: converter-queue
+          property: connectionString
+    disk:
+      name: shared-files
+      mountPath: /code/uploads
+      sizeGB: 1
+
+  - type: worker
+    name: docx-converter-worker
+    env: docker
+    dockerfilePath: ./Dockerfile.worker
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9
+      - key: PYTHONPATH
+        value: /code
+      - key: DATABASE_URL
+        fromService:
+          type: psql
+          name: converter-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: converter-queue
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: converter-queue
+          property: connectionString
+    disk:
+      name: shared-files
+      mountPath: /code/uploads
