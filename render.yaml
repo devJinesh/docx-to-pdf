@@ -1,5 +1,5 @@
 services:
-  - type: psql
+  - type: database
     name: converter-db
     plan: free
 
@@ -19,7 +19,7 @@ services:
         value: /code
       - key: DATABASE_URL
         fromService:
-          type: psql
+          type: database
           name: converter-db
           property: connectionString
       - key: CELERY_BROKER_URL
@@ -49,7 +49,7 @@ services:
         value: /code
       - key: DATABASE_URL
         fromService:
-          type: psql
+          type: database
           name: converter-db
           property: connectionString
       - key: CELERY_BROKER_URL
