@@ -1,8 +1,5 @@
-# FILE: Dockerfile.api (FINAL)
-
 FROM python:3.9-slim
 
-# Set the parent working directory
 WORKDIR /code
 
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -13,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code into a subdirectory
 COPY ./app /code/app
 
 EXPOSE 8000
