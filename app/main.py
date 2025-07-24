@@ -6,6 +6,7 @@ from typing import List
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import crud, models, schemas, tasks
 from app.database import engine, get_db
@@ -13,6 +14,14 @@ from app.database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="DOCX to PDF Conversion Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods
+    allow_headers=["*"], # Allows all headers
+)
 
 UPLOAD_DIRECTORY = "/code/uploads"
 DOWNLOAD_DIRECTORY = "/code/downloads"
