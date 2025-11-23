@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:13
+    image: postgres:17-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
@@ -16,7 +16,7 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3.9-management-alpine
+    image: rabbitmq:3.13-management-alpine
     container_name: 'rabbitmq'
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-user}
@@ -24,12 +24,27 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     volumes:
       - ./app:/code/app
       - shared_uploads:/code/uploads
@@ -40,18 +55,20 @@ services:
       - PYTHONPATH=/code
       - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-docxconverter}
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASS:-password}@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=rpc://
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    command: /code/worker-entrypoint.sh
+    entrypoint: /code/worker-entrypoint.sh
     volumes:
       - ./app:/code/app
       - ./worker-entrypoint.sh:/code/worker-entrypoint.sh
@@ -61,7 +78,43 @@ services:
       - PYTHONPATH=/code
       - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-docxconverter}
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASS:-password}@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=rpc://
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./app:/code/app
+      - shared_uploads:/code/uploads
+      - shared_downloads:/code/downloads
+    environment:
+      - PYTHONPATH=/code
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-docxconverter}
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASS:-password}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
     depends_on:
       - api
 

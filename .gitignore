@@ -55,8 +55,9 @@ coverage.xml
 # Environment variables
 .env
 .env.*
+!.env.example
 
-# Local data folders
+# Local data folders (Docker volumes)
 uploads/
 downloads/
 
@@ -67,3 +68,33 @@ downloads/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Frontend / Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store

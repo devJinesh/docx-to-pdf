@@ -1,54 +1,55 @@
 from sqlalchemy.orm import Session
 import uuid
 from typing import List
-
-from app import models, schemas
+from app import models
 
 
 def create_job(db: Session, filenames: List[str]) -> models.Job:
-    new_job = models.Job(status=models.JobStatus.PENDING)
-    db.add(new_job)
+    job = models.Job(status=models.JobStatus.PENDING)
+    db.add(job)
     db.commit()
-    db.refresh(new_job)
+    db.refresh(job)
 
     for name in filenames:
-        file_record = models.File(
-            job_id=new_job.id,
+        file = models.File(
+            job_id=job.id,
             original_filename=name,
             status=models.FileStatus.PENDING
         )
-        db.add(file_record)
+        db.add(file)
     
     db.commit()
-    db.refresh(new_job)
-    return new_job
+    db.refresh(job)
+    return job
+
 
 def get_job(db: Session, job_id: uuid.UUID) -> models.Job:
     return db.query(models.Job).filter(models.Job.id == job_id).first()
 
-def update_file_status(db: Session, job_id: uuid.UUID, filename: str, status: models.FileStatus, error_message: str = None):
-    file_to_update = db.query(models.File).filter(
+
+def update_file_status(db: Session, job_id: uuid.UUID, filename: str, status: models.FileStatus, error: str = None):
+    file = db.query(models.File).filter(
         models.File.job_id == job_id,
         models.File.original_filename == filename
     ).first()
 
-    if file_to_update:
-        file_to_update.status = status
-        if error_message:
-            file_to_update.error_message = error_message
+    if file:
+        file.status = status
+        if error:
+            file.error_message = error
         db.commit()
 
-def check_and_update_job_status(db: Session, job_id: uuid.UUID):
+
+def update_job_status(db: Session, job_id: uuid.UUID):
     job = get_job(db, job_id)
     if not job:
         return
 
-    if any(file.status in [models.FileStatus.PENDING, models.FileStatus.PROCESSING] for file in job.files):
+    if any(f.status in [models.FileStatus.PENDING, models.FileStatus.PROCESSING] for f in job.files):
         job.status = models.JobStatus.IN_PROGRESS
+    elif any(f.status == models.FileStatus.COMPLETED for f in job.files):
+        job.status = models.JobStatus.COMPLETED
     else:
-        if any(file.status == models.FileStatus.COMPLETED for file in job.files):
-            job.status = models.JobStatus.COMPLETED
-        else:
-            job.status = models.JobStatus.FAILED
+        job.status = models.JobStatus.FAILED
     
     db.commit()

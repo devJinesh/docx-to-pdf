@@ -1,136 +1,95 @@
-# 📝 Bulk DOCX to PDF Converter
+# 📝 DOCX to PDF Converter
 
-This is a lightweight, containerized web service that converts batches of `.docx` files into `.pdf`. Upload files via a simple REST API, and receive a ZIP file of the converted PDFs.
+A lightweight, containerized web service that converts batches of `.docx` files into `.pdf` format. Upload files via REST API and receive a ZIP file of converted PDFs.
 
 Built for **speed**, **reliability**, and **scalability**.
 
----
+## 🚀 Quick Start
 
-## ⚙️ Tech Stack
+### Prerequisites
+- Docker & Docker Compose
+- 2GB+ free disk space
 
-- **FastAPI** – REST API
-- **Celery** – Background task management
-- **RabbitMQ** – Task queue
-- **PostgreSQL** – Tracks jobs and statuses
-- **LibreOffice CLI** – Performs DOCX to PDF conversion
-- **Docker + Docker Compose** – For easy deployment
-
----
-
-## 🧱 Architecture & File Storage
-
-- **FastAPI container** handles API endpoints and file uploads.
-- Uploaded `.docx` files are stored in a **shared Docker volume** accessible by both the **API** and **Celery worker** containers.
-- The **worker container** picks up uploaded files from the shared volume, performs the conversion using **LibreOffice**, and writes the output PDFs back into the same volume.
-- Converted files are zipped and served back to the user from the API container.
-
-➡️ This design ensures **isolation of concerns** while maintaining **shared access** via volumes — enabling **scalable, parallel processing**.
-
----
-
-## 🚀 Getting Started Locally
-
-### 1. Clone the Repository
-
+### Run the Application
 ```bash
-git clone https://github.com/your-username/docx-to-pdf-converter.git
+# Clone and start (first time: 5-15 minutes)
+git clone <repository-url>
 cd docx-to-pdf-converter
+docker compose up --build -d
+
+# Subsequent starts (10-15 seconds)
+docker compose up -d
 ```
 
----
+### Access Services
+- **Frontend**: http://localhost:80
+- **API Docs**: http://localhost:8000/docs
+- **API**: http://localhost:8000
 
-### 2. Build and Run the Containers
+## 🧱 Architecture
 
-Ensure Docker & Docker Compose are installed:
+- **FastAPI** - REST API with 4 workers
+- **Celery** - Background task processing
+- **RabbitMQ** - Message queue
+- **PostgreSQL** - Job tracking & status
+- **Redis** - Result backend
+- **LibreOffice** - DOCX to PDF conversion
+- **React + TypeScript** - Modern frontend
 
-```bash
-docker-compose up --build
-```
+Files are processed asynchronously using shared Docker volumes for scalability.
 
-The first build may take a few minutes (LibreOffice installation in worker container).
+## 📡 API Usage
 
----
-
-### 3. Access the Services
-
-- API docs: [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
-- API root: [http://localhost:8000](http://localhost:8000)
-- RabbitMQ dashboard: [http://localhost:15672](http://localhost:15672)
-
----
-
-## 📡 Hosted Version
-
-Also available at:
-
-- **API root**: [http://docx-pdf.duckdns.org:8000](http://docx-pdf.duckdns.org:8000)
-- Example `curl` usage:
-
-```bash
-curl -X POST http://docx-pdf.duckdns.org:8000/api/v1/jobs \
-  -F "files=@/path/to/file1.docx" \
-  -F "files=@/path/to/file2.docx"
-```
-
----
-
-## 📤 API Usage
-
-### 1. Submit a Conversion Job
-
+### Submit Conversion Job
 ```bash
 curl -X POST http://localhost:8000/api/v1/jobs \
-  -F "files=@/path/to/file1.docx" \
-  -F "files=@/path/to/file2.docx"
+  -F "files=@document1.docx" \
+  -F "files=@document2.docx"
 ```
 
-📨 Response:
+**Response:**
 ```json
 { "job_id": "abc123" }
 ```
 
----
+### Check Job Status
+```bash
+curl http://localhost:8000/api/v1/jobs/abc123
+```
 
-### 2. Check Job Status
+### Download Results
+```bash
+curl http://localhost:8000/api/v1/jobs/abc123/download --output results.zip
+```
+
+## 🎨 Frontend Features
+
+- Drag & drop file upload
+- Real-time conversion progress
+- Responsive design
+- One-click download
+
+## 🛑 Management
 
 ```bash
-curl http://localhost:8000/api/v1/jobs/<job_id>
+# Stop services
+docker compose down
+
+# Stop and remove data
+docker compose down -v
+
+# View logs
+docker compose logs -f [service]
 ```
 
-Response shows `status` (`PENDING`, `IN_PROGRESS`, `COMPLETED`, etc.) and download URL if ready.
+## 🔧 Configuration
 
----
+Customize environment variables in `docker-compose.yml` or create a `.env` file using `.env.example` as template.
 
-### 3. Download Results
+## 📚 Tech Stack Details
 
-```bash
-curl http://localhost:8000/api/v1/jobs/<job_id>/download --output results.zip
-```
-
----
-
-## 📚 API Docs
-
-Swagger UI is automatically available at:
-
-```
-http://localhost:8000/docs
-http://docx-pdf.duckdns.org:8000/docs
-```
-
-Includes schema, request/response formats, and live testing.
-
----
-
-## 🛑 Stopping the App
-
-```bash
-docker-compose down        # Stop services
-docker-compose down -v     # Also remove volumes (clears file data)
-```
-
----
-
-## ✅ Done!
-
-You now have a fully functional, scalable, DOCX-to-PDF converter—locally and remotely accessible.
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy, Pydantic
+- **Worker**: Celery, LibreOffice with font optimization
+- **Database**: PostgreSQL 17 with connection pooling
+- **Queue**: RabbitMQ 3.13 with health checks
+- **Cache**: Redis 7
